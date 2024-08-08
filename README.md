@@ -29,16 +29,15 @@ nugbot path/to/your/project.csproj
 nugbot -u minor path/to/your/project.csproj
 ```
 
-#### Check for major updates and apply them to the `.csproj` file
+#### Check for major updates
 
 ```sh
-nugbot -u major -f path/to/your/project.csproj
+nugbot -u major path/to/your/project.csproj
 ```
 
 ## Options
 
 - `-u, --update-type`: Specify the type of updates to check for (`major`, `minor`, `patch`). Default is `patch`.
-- `-f, --fix`: Apply updates to the `.csproj` file.
 
 ## Logging
 
@@ -49,7 +48,6 @@ Logs are output in JSON format to `stderr` for easier integration with logging s
 1. **Parsing**: The tool parses the `.csproj` file to extract package references.
 2. **Fetching Updates**: It checks for available updates for each package from the NuGet repository.
 3. **Comparing Versions**: It compares the current version with the latest available version based on the specified update type (major, minor, patch).
-4. **Updating**: If the `--fix` flag is used, the `.csproj` file is updated with the new package versions.
 5. **Output**: It prints the updates to `stdout` in JSON format.
 
 ## Error Handling

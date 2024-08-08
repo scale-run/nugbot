@@ -41,7 +41,6 @@ type PackageUpdate struct {
 // updateType is the type of update to check for (major, minor, patch)
 var (
 	updateType string //nolint:gochecknoglobals
-	fix        bool   //nolint:gochecknoglobals
 )
 
 func main() {
@@ -55,12 +54,11 @@ func main() {
 			slog.SetDefault(logger)
 
 			filePath := args[0]
-			runUpdateChecker(filePath, updateType, fix)
+			runUpdateChecker(filePath, updateType)
 		},
 	}
 
 	rootCmd.Flags().StringVarP(&updateType, "update-type", "u", "patch", "Update type: major, minor, patch")
-	rootCmd.Flags().BoolVarP(&fix, "fix", "f", false, "Apply updates to the .csproj file")
 
 	if err := rootCmd.Execute(); err != nil {
 		slog.Error("Command execution failed", slog.Any("error", err))
@@ -69,7 +67,7 @@ func main() {
 }
 
 // runUpdateChecker runs the update checker
-func runUpdateChecker(filePath string, mmp string, fix bool) {
+func runUpdateChecker(filePath string, mmp string) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		slog.Error("Error opening file", slog.Any("error", err))
@@ -95,17 +93,12 @@ func runUpdateChecker(filePath string, mmp string, fix bool) {
 	updates := checkForUpdates(packages, mmp)
 
 	if len(updates) > 0 {
-		if fix {
-			if err := updateCsprojFile(filePath, bytes, updates); err != nil {
-				slog.Error("Error updating .csproj file", slog.Any("error", err))
-
-				return
-			}
-		}
 		writeUpdates(updates, os.Stdout)
-	} else {
-		slog.Info("No updates found")
+
+		return
 	}
+
+	slog.Info("No updates found")
 }
 
 // parsePackages parses the packages from the given file
@@ -220,49 +213,6 @@ func isValidUpdate(currentVersion, ver, latestVersion *semver.Version, mmp strin
 	}
 
 	return false
-}
-
-// updateCsprojFile updates the .csproj file with the new versions
-func updateCsprojFile(_ string, _ []byte, _ []PackageUpdate) error {
-	return errors.New("not implemented") //nolint:goerr113
-	// // Load the original XML
-	// var project Project
-	//
-	//	if err := xml.Unmarshal(data, &project); err != nil {
-	//		return fmt.Errorf("error parsing .csproj XML: %w", err)
-	//	}
-	//
-	// // Create a map of updates for easy lookup
-	// updateMap := make(map[string]string)
-	//
-	//	for _, update := range updates {
-	//		updateMap[update.Include] = update.NewVersion
-	//	}
-	//
-	// // Update the versions in the project structure
-	//
-	//	for i := range project.ItemGroup {
-	//		for j := range project.ItemGroup[i].PackageReference {
-	//			if newVersion, exists := updateMap[project.ItemGroup[i].PackageReference[j].Include]; exists {
-	//				project.ItemGroup[i].PackageReference[j].Version = newVersion
-	//			}
-	//		}
-	//	}
-	//
-	// // Marshal the updated project back to XML
-	// output, err := xml.MarshalIndent(project, "", "  ")
-	//
-	//	if err != nil {
-	//		return fmt.Errorf("error marshalling .csproj XML: %w", err)
-	//	}
-	//
-	// // Write the updated XML back to the file
-	//
-	//	if err := os.WriteFile(filePath, output, 0644); err != nil {
-	//		return fmt.Errorf("error writing .csproj file: %w", err)
-	//	}
-	//
-	// return nil
 }
 
 // writeUpdates writes the updates to stdout
