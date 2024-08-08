@@ -56,6 +56,80 @@ Logs are output in JSON format to `stderr` for easier integration with logging s
 
 If any errors occur (e.g., file reading issues, parsing errors, network problems), they will be logged to `stderr` with detailed information.
 
+## Example Azure DevOps Pipeline
+
+```yaml
+trigger:
+- main
+
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily midnight build
+  branches:
+    include:
+    - main
+  always: true
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+stages:
+- stage: UpdatePackages
+  jobs:
+  - job: UpdatePackagesJob
+    steps:
+    - checkout: self
+
+    - script: |
+        # Install jq for JSON processing
+        sudo apt-get install -y jq
+
+        # Fetch the latest release information from GitHub API
+        latest_release_url=$(curl -s https://api.github.com/repos/scale-run/nugbot/releases/latest | jq -r '.assets[] | select(.name | contains("nugbot-linux-amd64")) | .browser_download_url')
+
+        # Download the latest release binary
+        curl -L -o nugbot $latest_release_url
+
+        # Make nugbot binary executable
+        chmod +x ./nugbot
+
+        # Run the nugbot tool to find updates
+        ./nugbot -u patch > updates.json
+
+        # Read the updates
+        updates=$(cat updates.json | jq -c '.[]')
+        for update in $updates; do
+          include=$(echo $update | jq -r '.include')
+          new_version=$(echo $update | jq -r '.new_version')
+
+          # Create a new branch for each update
+          branch_name="update-${include}-${new_version}"
+          git checkout -b $branch_name
+
+          # Update the package using nuget
+          csproj_file=$(find . -name '*.csproj')
+          nuget update $csproj_file -Id $include -Version $new_version
+
+          # Commit and push the changes
+          git add .
+          git commit -m "Update $include to version $new_version"
+          git push origin $branch_name
+
+          # Create a pull request
+          az repos pr create --repository $(Build.Repository.Name) \
+                            --source-branch $branch_name \
+                            --target-branch main \
+                            --title "Update $include to version $new_version" \
+                            --description "This PR updates $include to version $new_version."
+        done
+      displayName: 'Update Packages and Create PRs'
+      env:
+        AZURE_DEVOPS_EXT_PAT: $(SYSTEM_ACCESSTOKEN)
+```
+
 ## Contributions
 
 Contributions are welcome! Please fork the repository and submit pull requests.
