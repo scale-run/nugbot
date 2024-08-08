@@ -95,10 +95,9 @@ stages:
         chmod +x ./nugbot
 
         # Run the nugbot tool to find updates
-        ./nugbot -u patch > updates.json
+        updates=$(./nugbot -u patch | jq -c '.[]')
 
-        # Read the updates
-        updates=$(cat updates.json | jq -c '.[]')
+        # Process each update
         for update in $updates; do
           include=$(echo $update | jq -r '.include')
           new_version=$(echo $update | jq -r '.new_version')
